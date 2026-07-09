@@ -1,99 +1,128 @@
-# app.py
-import os
 import streamlit as st
-from google import genai
+import os
+from google.genai import Client
+from google.genai import types
+
+# 💡 Local-to-Cloud Environment Variable Bridge
 from dotenv import load_dotenv
-from core.retriever import CollegeKnowledgeRetriever
+load_dotenv() 
 
-# Load environment variables securely from your local .env file
-load_dotenv()
-api_key = os.getenv("GEMINI_API_KEY")
+# Import your custom modular RAG components 
+from core.retriever import CollegeRetriever
+from core.classifier import QueryClassifier
 
-if not api_key:
-    st.error("❌ GEMINI_API_KEY not found in your .env file. Please add it to continue.")
+# 1. Page Configuration & Custom UI Styling
+st.set_page_config(
+    page_title="College Intelligent Assistant",
+    page_icon="🎓",
+    layout="centered"
+)
+
+st.markdown("""
+    <style>
+    .main-header { font-size: 2.2rem; font-weight: 700; color: #1E3A8A; margin-bottom: 0.5rem; }
+    .sub-header { font-size: 1.1rem; color: #4B5563; margin-bottom: 2rem; }
+    .context-box { background-color: #F3F4F6; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #1E3A8A; margin-bottom: 1rem; }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="main-header">🎓 College Smart RAG Chatbot</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">Instant, verified answers regarding courses, admissions, and campus regulations.</div>', unsafe_allow_html=True)
+
+# 2. Secure API Key & Core Components Initialization
+@st.cache_resource
+def initialize_core_components():
+    """Initializes the Gemini Client and RAG modules once and caches them."""
+    # Checks Streamlit Cloud Secrets first; falls back to local .env configuration
+    api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+    
+    if not api_key:
+        st.error("❌ Critical Error: GEMINI_API_KEY not found in Streamlit Secrets or Environment.")
+        st.stop()
+        
+    # Initialize the Gemini direct Client (Namespace Collision Safe)
+    genai_client = Client(api_key=api_key)
+    
+    # Initialize your local hybrid vector database retriever & classifier
+    retriever = CollegeRetriever(storage_dir="college_rag_storage")
+    classifier = QueryClassifier()
+    
+    return genai_client, retriever, classifier
+
+try:
+    client, retriever, classifier = initialize_core_components()
+except Exception as e:
+    st.error(f"Failed to load core database or models: {str(e)}")
     st.stop()
 
-# Initialize the modern, unified Google GenAI Client with caching
-@st.cache_resource
-def get_gemini_client(key: str):
-    return genai.Client(api_key=key)
+# 3. Chat Session State Management
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Hello! I am your AI campus guide. How can I assist you with college updates today?"}
+    ]
 
-client = get_gemini_client(api_key)
+# Display historical messages in the interface
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-# Page Layout Configuration Setup
-st.set_page_config(page_title="College Assistant", layout="wide")
-st.title("🎓 Intelligent College RAG Helpdesk")
-st.markdown("---")
-
-# Initialize and cache our hybrid vector search engine module into application memory
-@st.cache_resource
-def load_search_engine():
-    return CollegeKnowledgeRetriever()
-
-retriever = load_search_engine()
-
-# Left Sidebar UI: Context Filtering Control Center
-with st.sidebar:
-    st.header("⚙️ Search Controls")
-    st.markdown("Use these settings to focus your assistant's knowledge search area.")
+# 4. Main Query & Execution Flow
+if user_query := st.chat_input("Ask about admissions, fees, courses, or timings..."):
     
-    # Category dropdown matching our Pydantic validation domains exactly
-    selected_domain = st.selectbox(
-        "Focus Area Category:",
-        ["All", "Placements", "Hostel", "Fees", "Syllabus", "Courses", "Academics"]
-    )
-    
-    st.info("💡 **Tip:** Selecting a category forces Qdrant to apply a hardware-level metadata filter, keeping context processing accurate.")
+    # Append and render user statement
+    st.session_state.messages.append({"role": "user", "content": user_query})
+    with st.chat_message("user"):
+        st.markdown(user_query)
 
-# Main Layout Workspace: User Query Submission & Generation Section
-st.subheader("💬 Ask Your College Queries")
-user_input = st.text_input("Type your question here (e.g., 'What are the placement highlights for GL Bajaj?'):")
-
-if user_input:
-    with st.spinner("🔍 Scanning Hybrid Knowledge Base & Formulating Answer..."):
-        # Step 1: Query local Qdrant database to retrieve relevant documentation blocks
-        context_chunks = retriever.search_knowledge_base(
-            user_query=user_input, 
-            target_category=selected_domain, 
-            top_k=3
-        )
+    with st.chat_message("assistant"):
+        response_placeholder = st.empty()
         
-        if not context_chunks:
-            st.warning("⚠️ No matching context documents found within your database for this category.")
-            combined_context = "No direct documentation context found."
-        else:
-            # Combine individual string chunks into a single reference context canvas
-            combined_context = "\n\n".join([f"[Doc {i+1}]: {text}" for i, text in enumerate(context_chunks)])
-            
-            # Show verified ground-truth documentation snippets inside an expander tab
-            with st.expander("📂 View Retrieved Qdrant Context Chunks (Ground Truth)"):
-                for chunk in context_chunks:
-                    st.write(f"• {chunk}")
+        with st.spinner("Analyzing campus knowledge base..."):
+            try:
+                # Step A: Intent Classification (e.g., General vs Academic vs Admission)
+                query_intent = classifier.classify(user_query)
+                
+                # Step B: Retrieve relevant context fragments from SQLite/Hybrid storage
+                retrieved_docs = retriever.get_relevant_context(user_query, intent=query_intent)
+                context_str = "\n\n".join([doc.page_content for doc in retrieved_docs])
+                
+                # Step C: Engineering the prompt layout for Gemini
+                system_instruction = (
+                    "You are an official, supportive AI Chatbot representing the college administration.\n"
+                    "Analyze the verified context provided below to formulate a concise, professional answer.\n"
+                    "If the answer cannot be found within the provided context chunks, politely inform the user "
+                    "that specific information isn't in your current system and advise contacting the campus helpdesk."
+                )
+                
+                user_content = f"Context Material:\n{context_str}\n\nUser Question: {user_query}"
+                
+                # Step D: Request a structured generation from Gemini Flash
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=user_content,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        temperature=0.3, # Kept low for factual consistency
+                        max_output_tokens=800
+                    )
+                )
+                
+                assistant_response = response.text
+                response_placeholder.markdown(assistant_response)
+                
+                # Optional: Show references/sources expansively at the bottom
+                if retrieved_docs:
+                    with st.expander("📚 View Verified Knowledge Sources"):
+                        for idx, doc in enumerate(retrieved_docs, start=1):
+                            source_info = doc.metadata.get("source", "Campus Database")
+                            st.markdown(f"**Source {idx} ({source_info}):**")
+                            st.markdown(f"*{doc.page_content}*")
+                            st.write("---")
 
-        # Step 2: Formulate explicit system directives to prevent model hallucination
-        system_instruction = (
-            "You are an official AI Assistant for GL Bajaj Institute of Technology and Management (GLBITM). "
-            "Your job is to answer the student's question accurately using only the verified documentation context provided. "
-            "If the answer cannot be found within the provided context, politely state that you do not have that "
-            "official data available from your scraped links, and offer general placeholder guidance. Keep your tone helpful and professional."
-        )
-
-        prompt_content = f"""
-        VERIFIED DOCUMENTATION CONTEXT:
-        {combined_context}
-
-        STUDENT QUESTION:
-        {user_input}
-        """
-
-        # Step 3: Dispatch instructions and structural payload to the modern Gemini backend engine
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt_content,
-                config={"system_instruction": system_instruction}
-            )
-            st.markdown("### 🤖 Assistant Response:")
-            st.write(response.text)
-        except Exception as e:
-            st.error(f"❌ Gemini Generation Failed: {e}")
+                # Store history
+                st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+                
+            except Exception as error:
+                error_msg = f"An execution boundary error occurred: {str(error)}"
+                response_placeholder.markdown(error_msg)
+                st.session_state.messages.append({"role": "assistant", "content": error_msg})
