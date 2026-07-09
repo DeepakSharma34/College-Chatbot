@@ -1,0 +1,8 @@
+streamlit
+google-genai
+python-dotenv
+qdrant-client
+fastembed
+pydantic
+requests
+beautifulsoup4
