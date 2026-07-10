@@ -76,7 +76,7 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
                 query_intent = classifier.predict_category(user_query)
                 
               
-                retrieved_docs = retriever.search_knowledge_base(user_query, intent=query_intent)
+                retrieved_docs = retriever.search_knowledge_base(user_query, target_category=query_intent)
                 context_str = "\n\n".join([doc.page_content for doc in retrieved_docs])
         
                 system_instruction = (
