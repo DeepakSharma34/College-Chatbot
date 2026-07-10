@@ -2,18 +2,16 @@ import streamlit as st
 import os
 from google.genai import Client
 from google.genai import types
-
-# 💡 Local-to-Cloud Environment Variable Bridge
 from dotenv import load_dotenv
 load_dotenv() 
 
-# Import your custom modular RAG components 
+ 
 from core.retriever import CollegeKnowledgeRetriever
 from core.classifier import collegeChunkClassifier
 
-# 1. Page Configuration & Custom UI Styling
+
 st.set_page_config(
-    page_title="College Intelligent Assistant",
+    page_title=" Gl bajaj College Intelligent Assistant",
     page_icon="🎓",
     layout="centered"
 )
@@ -29,21 +27,19 @@ st.markdown("""
 st.markdown('<div class="main-header">🎓 College Smart RAG Chatbot</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Instant, verified answers regarding courses, admissions, and campus regulations.</div>', unsafe_allow_html=True)
 
-# 2. Secure API Key & Core Components Initialization
 @st.cache_resource
 def initialize_core_components():
     """Initializes the Gemini Client and RAG modules once and caches them."""
-    # Checks Streamlit Cloud Secrets first; falls back to local .env configuration
+
     api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
     
     if not api_key:
         st.error("❌ Critical Error: GEMINI_API_KEY not found in Streamlit Secrets or Environment.")
         st.stop()
-        
-    # Initialize the Gemini direct Client (Namespace Collision Safe)
+   
     genai_client = Client(api_key=api_key)
     
-    # Initialize your local hybrid vector database retriever & classifier
+
     retriever = CollegeKnowledgeRetriever()
     classifier = collegeChunkClassifier()
     
@@ -55,21 +51,18 @@ except Exception as e:
     st.error(f"Failed to load core database or models: {str(e)}")
     st.stop()
 
-# 3. Chat Session State Management
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "Hello! I am your AI campus guide. How can I assist you with college updates today?"}
     ]
 
-# Display historical messages in the interface
+
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 4. Main Query & Execution Flow
 if user_query := st.chat_input("Ask about admissions, fees, courses, or timings..."):
-    
-    # Append and render user statement
+
     st.session_state.messages.append({"role": "user", "content": user_query})
     with st.chat_message("user"):
         st.markdown(user_query)
@@ -79,14 +72,13 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
         
         with st.spinner("Analyzing campus knowledge base..."):
             try:
-                # Step A: Intent Classification (e.g., General vs Academic vs Admission)
+                
                 query_intent = classifier.predict_category(user_query)
                 
-                # Step B: Retrieve relevant context fragments from SQLite/Hybrid storage
-                retrieved_docs = retriever.get_relevant_context(user_query, intent=query_intent)
+              
+                retrieved_docs = retriever.search_knowledge_base(user_query, intent=query_intent)
                 context_str = "\n\n".join([doc.page_content for doc in retrieved_docs])
-                
-                # Step C: Engineering the prompt layout for Gemini
+        
                 system_instruction = (
                     "You are an official, supportive AI Chatbot representing the college administration.\n"
                     "Analyze the verified context provided below to formulate a concise, professional answer.\n"
@@ -96,13 +88,13 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
                 
                 user_content = f"Context Material:\n{context_str}\n\nUser Question: {user_query}"
                 
-                # Step D: Request a structured generation from Gemini Flash
+                
                 response = client.models.generate_content(
                     model='gemini-2.5-flash',
                     contents=user_content,
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction,
-                        temperature=0.3, # Kept low for factual consistency
+                        temperature=0.3, 
                         max_output_tokens=800
                     )
                 )
@@ -110,7 +102,7 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
                 assistant_response = response.text
                 response_placeholder.markdown(assistant_response)
                 
-                # Optional: Show references/sources expansively at the bottom
+                
                 if retrieved_docs:
                     with st.expander("📚 View Verified Knowledge Sources"):
                         for idx, doc in enumerate(retrieved_docs, start=1):
@@ -119,7 +111,7 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
                             st.markdown(f"*{doc.page_content}*")
                             st.write("---")
 
-                # Store history
+           
                 st.session_state.messages.append({"role": "assistant", "content": assistant_response})
                 
             except Exception as error:
