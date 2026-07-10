@@ -80,10 +80,10 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
                 context_str = "\n\n".join(retrieved_docs) if retrieved_docs else "No specific context found."
         
                 system_instruction = (
-                    "You are an official, supportive AI Chatbot representing the college administration.\n"
-                    "Analyze the verified context provided below to formulate a concise, professional answer.\n"
-                    "If the answer cannot be found within the provided context chunks, politely inform the user "
-                    "that specific information isn't in your current system and advise contacting the campus helpdesk."
+                   "You are an official, supportive AI Chatbot representing the college administration.\n"
+                  "Analyze the verified context provided below to formulate a professional, complete answer.\n"
+                  "Provide full details or lists where requested by the user, without cutting off information midway.\n"
+                  "If the answer cannot be found within the provided context chunks, politely inform the user..."
                 )
                 
                 user_content = f"Context Material:\n{context_str}\n\nUser Question: {user_query}"
@@ -95,7 +95,7 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction,
                         temperature=0.3, 
-                        max_output_tokens=800
+                        max_output_tokens=2000
                     )
                 )
                 
