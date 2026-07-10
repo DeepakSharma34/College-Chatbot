@@ -102,13 +102,6 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
                 assistant_response = response.text
                 response_placeholder.markdown(assistant_response)
                 
-                
-                if retrieved_docs:
-                    with st.expander("📚 View Verified Knowledge Sources"):
-                        for idx, text_chunk in enumerate(retrieved_docs, start=1):
-                            st.markdown(f"**Source Fragment {idx}:**")
-                            st.markdown(f"*{text_chunk}*")
-                            st.write("---")
 
            
                 st.session_state.messages.append({"role": "assistant", "content": assistant_response})
