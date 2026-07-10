@@ -80,7 +80,7 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
         with st.spinner("Analyzing campus knowledge base..."):
             try:
                 # Step A: Intent Classification (e.g., General vs Academic vs Admission)
-                query_intent = classifier.classify(user_query)
+                query_intent = classifier.predict_category(user_query)
                 
                 # Step B: Retrieve relevant context fragments from SQLite/Hybrid storage
                 retrieved_docs = retriever.get_relevant_context(user_query, intent=query_intent)
