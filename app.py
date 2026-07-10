@@ -24,7 +24,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="main-header">🎓 College Smart RAG Chatbot</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">🎓 GL Bajaj College Smart RAG Chatbot</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Instant, verified answers regarding courses, admissions, and campus regulations.</div>', unsafe_allow_html=True)
 
 @st.cache_resource
@@ -77,7 +77,7 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
                 
               
                 retrieved_docs = retriever.search_knowledge_base(user_query, target_category=query_intent)
-                context_str = "\n\n".join([doc.page_content for doc in retrieved_docs])
+                context_str = "\n\n".join(retrieved_docs) if retrieved_docs else "No specific context found."
         
                 system_instruction = (
                     "You are an official, supportive AI Chatbot representing the college administration.\n"
@@ -105,10 +105,9 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
                 
                 if retrieved_docs:
                     with st.expander("📚 View Verified Knowledge Sources"):
-                        for idx, doc in enumerate(retrieved_docs, start=1):
-                            source_info = doc.metadata.get("source", "Campus Database")
-                            st.markdown(f"**Source {idx} ({source_info}):**")
-                            st.markdown(f"*{doc.page_content}*")
+                        for idx, text_chunk in enumerate(retrieved_docs, start=1):
+                            st.markdown(f"**Source Fragment {idx}:**")
+                            st.markdown(f"*{text_chunk}*")
                             st.write("---")
 
            
