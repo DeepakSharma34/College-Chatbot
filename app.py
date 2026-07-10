@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 load_dotenv() 
 
 # Import your custom modular RAG components 
-from core.retriever import CollegeRetriever
-from core.classifier import QueryClassifier
+from core.retriever import CollegeKnowledgeRetriever
+from core.classifier import collegeChunkClassifier
 
 # 1. Page Configuration & Custom UI Styling
 st.set_page_config(
@@ -44,8 +44,8 @@ def initialize_core_components():
     genai_client = Client(api_key=api_key)
     
     # Initialize your local hybrid vector database retriever & classifier
-    retriever = CollegeRetriever(storage_dir="college_rag_storage")
-    classifier = QueryClassifier()
+    retriever = CollegeKnowledgeRetriever(storage_dir="college_rag_storage")
+    classifier = collegeChunkClassifier()
     
     return genai_client, retriever, classifier
 
