@@ -44,7 +44,7 @@ def initialize_core_components():
     genai_client = Client(api_key=api_key)
     
     # Initialize your local hybrid vector database retriever & classifier
-    retriever = CollegeKnowledgeRetriever(storage_dir="college_rag_storage")
+    retriever = CollegeKnowledgeRetriever()
     classifier = collegeChunkClassifier()
     
     return genai_client, retriever, classifier
