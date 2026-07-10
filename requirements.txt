@@ -7,5 +7,3 @@ fastembed
 pydantic
 requests
 beautifulsoup4
-transformers
-torch
