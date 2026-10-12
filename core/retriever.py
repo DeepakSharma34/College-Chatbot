@@ -1,7 +1,6 @@
-# core/retriever.py
 from config.database import get_qdrant_client, COLLECTION_NAME
 from fastembed import TextEmbedding, SparseTextEmbedding
-# Ensure FusionQuery and Fusion are included in your imports
+
 from qdrant_client.models import Prefetch, Filter, FieldCondition, MatchValue, FusionQuery, Fusion
 
 class CollegeKnowledgeRetriever:
