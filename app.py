@@ -90,7 +90,7 @@ if user_query := st.chat_input("Ask about admissions, fees, courses, or timings.
                 
                 
                 response = client.models.generate_content(
-                    model='gemini-3.8-flash',
+                    model='gemini-3.5-flash-lite',
                     contents=user_content,
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction,
